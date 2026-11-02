@@ -44,8 +44,8 @@ def add_batch(api: HfApi, repo: str, batch: str, corpus: Path) -> None:
     remote = normalise(remote_listing(repo), corpus)
     if any(e["path"] in {r["path"] for r in remote} for e in mine):
         raise SystemExit(f"{batch} is already on {repo}")
-    api.upload_large_folder(repo_id=repo, repo_type="dataset", folder_path=corpus,
-                            allow_patterns=[f"items/{batch}/**", f"items/{batch}/*"])
+    api.upload_folder(repo_id=repo, repo_type="dataset", folder_path=corpus / "items" / batch,
+                      path_in_repo=f"items/{batch}", commit_message=f"Add images and masks of batch {batch}")
     ops = [CommitOperationAdd(e["path"], str(corpus / e["path"])) for e in mine]
     ops.append(CommitOperationAdd("batches.json", json.dumps({"batches": remote + mine}, indent=1).encode()))
     api.create_commit(repo, repo_type="dataset", operations=ops, commit_message=f"List batch {batch}")
