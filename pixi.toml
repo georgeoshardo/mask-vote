@@ -10,7 +10,8 @@ pillow = "*"
 tifffile = "*"
 imagecodecs = "*"
 scikit-image = "*"
-huggingface_hub = "*"
+huggingface_hub = ">=2.4"  # upload_folder streams, commits in parts and resumes (needs hf-xet)
+hf-xet = "*"
 
 [pypi-dependencies]
 playwright = "*"

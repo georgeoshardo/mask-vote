@@ -3,7 +3,9 @@
     pixi run upload --repo ghardo/mask-vote-corpus --batch 2026-11-03
     pixi run upload --repo ghardo/mask-vote-corpus --remove-sets set-10 --from-batch 2026-11-02
 
-Needs `huggingface-cli login` once (a token with write access). Creates the dataset as
+Needs `huggingface-cli login` once (a token with write access). With hf-xet installed,
+upload_folder streams the files, commits a large batch in several parts and, if it is
+interrupted, resumes when run again (files already on the hub are skipped). Creates the dataset as
 public if it does not exist yet (the page reads it without a token). The remote
 batches.json is merged, not overwritten, so batches can be added from any machine.
 Entries are {"path", "n"} (n = items in that list); plain paths from older batches are
