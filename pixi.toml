@@ -1,0 +1,21 @@
+[workspace]
+name = "mask-vote"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[dependencies]
+python = "3.12.*"
+numpy = "*"
+pillow = "*"
+tifffile = "*"
+imagecodecs = "*"
+scikit-image = "*"
+huggingface_hub = "*"
+
+[pypi-dependencies]
+playwright = "*"
+
+[tasks]
+pack = "python -m tools.pack"
+serve = "python -m tools.dev_server"
+upload = "python -m tools.upload"

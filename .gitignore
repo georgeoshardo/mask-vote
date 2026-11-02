@@ -1,0 +1,5 @@
+.pixi/
+corpus/
+__pycache__/
+votes.tsv
+private/
