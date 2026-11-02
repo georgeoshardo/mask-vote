@@ -106,8 +106,10 @@ async function show() {
   const n = await pick(); next = n ? { item: n, ready: prepare(n) } : null;  // fetch the next one now
 }
 
-function vote(v) {
-  if (!current) return;
+let busy = false;  // a tap while the next image loads would act on the same item again
+async function vote(v) {
+  if (!current || busy) return;
+  busy = true;
   const item = current.item;
   seen.add(item.id); store.set("mv-seen", [...seen]);
   if (v !== "skip") {
@@ -118,7 +120,7 @@ function vote(v) {
     const f = $("#flash"); f.style.background = v === "up" ? "rgba(63,179,127,.25)" : "rgba(224,86,91,.25)";
     f.style.opacity = 1; setTimeout(() => (f.style.opacity = 0), 150);
   }
-  show();
+  try { await show(); } finally { busy = false; }
 }
 
 $("#good").onclick = () => vote("up");
