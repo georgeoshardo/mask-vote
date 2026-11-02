@@ -13,7 +13,7 @@ const newId = () => crypto.randomUUID?.() ?? [...crypto.getRandomValues(new Uint
 const device = store.get("mv-device", null) || newId();
 store.set("mv-device", device);
 const seen = new Set(store.get("mv-seen", []));  // item ids rated or skipped on this device
-let items = [], current = null, next = null, outlines = true;
+let shards = [], total = 0, current = null, next = null, outlines = true;
 
 const PHI = 0.6180339887498949;
 function hue(l) {  // a distinct saturated colour per label, as in the training-data explorer
@@ -21,15 +21,37 @@ function hue(l) {  // a distinct saturated colour per label, as in the training-
   return [[1, f, 0], [q, 1, 0], [0, 1, f], [0, q, 1], [f, 0, 1], [1, 0, q]][i].map((c) => Math.round(c * 255));
 }
 
+// batches.json lists item lists ("shards"); each entry is a path, or {path, n} with its
+// item count, so a shard's list is only fetched once a draw lands on it.
 async function loadCorpus() {
   const { batches } = await (await fetch(CORPUS_URL + "batches.json", { cache: "no-cache" })).json();
-  const lists = await Promise.all(batches.map((b) => fetch(CORPUS_URL + b).then((r) => r.json())));
-  items = lists.flatMap((l) => l.items.map((it) => ({ ...it, batch: l.batch })));
+  shards = batches.map((b) => (typeof b === "string" ? { path: b, n: null } : { ...b }));
+  await Promise.all(shards.filter((s) => s.n == null).map(loadShard));  // old entries carry no count
+  total = shards.reduce((t, s) => t + s.n, 0);
 }
 
-function pick() {
-  const left = items.filter((it) => !seen.has(it.id) && it !== current && it !== next?.item);
-  return left.length ? left[Math.floor(Math.random() * left.length)] : null;
+async function loadShard(s) {
+  if (!s.items) {
+    const l = await (await fetch(CORPUS_URL + s.path)).json();
+    s.items = l.items.map((it) => ({ ...it, batch: l.batch }));
+    s.n = s.items.length;
+  }
+  return s.items;
+}
+
+const taken = (it) => seen.has(it.id) || it.id === current?.item.id || it.id === next?.item.id;
+
+async function pick() {  // every unseen item equally likely: draw a shard by its unseen count
+  for (let tries = 0; tries < 20; tries++) {
+    const w = shards.map((s) => (s.items ? s.items.filter((it) => !taken(it)).length : s.n));
+    let r = Math.random() * w.reduce((a, b) => a + b, 0);
+    if (!(r > 0)) return null;
+    let i = 0;
+    while (r >= w[i]) r -= w[i++];
+    const left = (await loadShard(shards[i])).filter((it) => !taken(it));
+    if (left.length) return left[Math.floor(Math.random() * left.length)];
+  }
+  return null;
 }
 
 async function bitmap(url) {  // exact pixel values: masks encode labels in their colour
@@ -76,12 +98,12 @@ function draw() {
 }
 
 async function show() {
-  current = next ? await next.ready : await prepare(pick());
+  current = next ? await next.ready : await prepare(await pick());
   if (!current) { $("#info").textContent = "All rated — thanks!"; $("#view").width = 0; return; }
   $("#info").textContent = `${current.item.w}×${current.item.h} · ${current.item.cells} cells`;
-  $("#count").textContent = `${seen.size} seen · ${items.length - seen.size} left`;
+  $("#count").textContent = `${seen.size} seen · ${Math.max(0, total - seen.size)} left`;
   draw();
-  const n = pick(); next = n ? { item: n, ready: prepare(n) } : null;  // fetch the next one now
+  const n = await pick(); next = n ? { item: n, ready: prepare(n) } : null;  // fetch the next one now
 }
 
 function vote(v) {
